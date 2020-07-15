@@ -1,25 +1,47 @@
-(function($, window, document) {
-	
+var oTable;
 
-	var DataTable = $('#TDM_datatable').dataTable({
-			            "scrollX"	: true ,
-			    		"language"	: {
-			    				 "lengthMenu": '<label>Show  Entries<select>'+
-			    				  '<option value="10">10</option>'+
-			    				 '<option value="20">20</option>'+
-			    				 '<option value="30">30</option>'+
-			    				 '<option value="40">40</option>'+
-			    				 '<option value="50">50</option>'+
-			    				 '<option value="-1">All</option>'+
-			    				 '</select></label>'
-			    			},
-						"fnFooterCallback": function ( nRow, aaData, iStart, iEnd, aiDisplay )
-							{
-
-			            	},
-			            "fnDrawCallback": function( oSettings )
-			    			{	
-			    			}
-			});
-
-}(window.jQuery, window, document));
+jQuery(document).ready(function(){
+   $('#TDM_datatable').DataTable();
+   
+   $(".tdm-dropdown-field").click(function(){
+       var id = $(this).attr('id');
+       $('#'+id+'-text').val( $(this).val() );
+   });
+   
+   $(".tdm-dropdown-cmp").click(function(){
+       var id = $(this).attr('id');
+       $('#'+id+'-text').val( $(this).val() );
+   });
+   
+    $("#tdm-btnsave_donations").click(function(){
+        
+        var campaign_map = [];
+        var fields_map = [];
+        var post_id = $("#tdm-postid-list").val();
+        
+        $.ajax({
+            type  : "post",
+            url   :  Totaldonations_DM.ajaxurl,
+            data  : {   action: "TotaldonationsDM_Ajax_save_donations",
+                        nonce : Totaldonations_DM.nonce,
+                        post  : post_id
+                    },
+            success: function(response)
+                        {
+                            console.log(response);
+                            
+                            if(response['status'] == '200'){
+                                
+                            }
+                        },
+            error: function(xhr, status, error)
+                        {
+                            console.log( error );
+                        },
+            complete : function(xhr, status, error)
+                        {
+                                   
+                        } 
+        });   
+    });
+});
