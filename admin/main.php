@@ -40,7 +40,7 @@ class Totaldonations_DM_ADMIN_MENU
             $totalDonations = $wpdb->get_var( $wpdb->prepare($sql1, "migla_donation") );
             
             $sql2  = "SELECT count(*) FROM {$wpdb->prefix}tdm_migla_mapping_records";
-            $saved = $wpdb->get_var( $wpdb->prepare($sql2) );
+            $saved = $wpdb->get_var( $sql2 );
             
             $sql1  = "SELECT post_date FROM {$wpdb->prefix}posts WHERE post_type = %s";
 		    $sql1  .= " AND post_status = 'publish'";
@@ -169,7 +169,7 @@ class Totaldonations_DM_ADMIN_MENU
             
             $sql2 = "SELECT * FROM {$wpdb->prefix}migla_campaign" ;
             
-            $campaigndata = $wpdb->get_results( $wpdb->prepare($sql2 ), ARRAY_A );
+            $campaigndata = $wpdb->get_results( $sql2 , ARRAY_A );
 		?>
 		<div class='wrap'>
         	<div class='container-fluid'>
