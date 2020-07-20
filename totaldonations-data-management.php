@@ -48,6 +48,7 @@ class Totaldonations_DataManager
 
 	    if(is_admin())
 		{
+		    include_once 'tdm-functions.php';
 			include_once 'admin/main.php';
 			include_once 'tdm-ajax.php';
 
@@ -94,6 +95,18 @@ class Totaldonations_DataManager
 	public static function donation_active_trigger()
 	{
         self::tables_creation();
+        
+        global $wpdb;
+        
+        $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        $password = substr( str_shuffle( $chars ), 0, 8 ); 
+        
+        $wpdb->insert( "{$wpdb->prefix}tdm_migla_options",
+    		              array( "option_name"  => 'sitecode',
+            		             "option_value" => $password
+            			       ),
+            			  array( '%s', '%s' )
+    		  	        );         
 	}
 
 	//what to do when deactive
@@ -114,11 +127,21 @@ class Totaldonations_DataManager
 		$sql .= " post_id int(11),";
 		$sql .= " donation_id int(11),";
 		$sql .= " PRIMARY KEY (id)";
-		$sql .= " )$charset_collate;";	
+		$sql .= " )$charset_collate;";
+		
+		$option_table	= $wpdb->prefix . 'tdm_migla_options';
+
+		$sql2 = "CREATE TABLE IF NOT EXISTS $option_table(";
+		$sql2 .= " id int(11) NOT NULL AUTO_INCREMENT,";
+		$sql2 .= " option_name varchar(100),";
+		$sql2 .= " option_value TEXT,";
+		$sql2 .= " PRIMARY KEY (id)";
+		$sql2 .= " )$charset_collate;";			
 		
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
 	    dbDelta( $sql );
+	    dbDelta( $sql2 );
 	}
 	
 	static public function setup_path()

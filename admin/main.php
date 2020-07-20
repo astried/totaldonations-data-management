@@ -5,6 +5,173 @@ if (session_status() == PHP_SESSION_NONE) {
 
 if ( !defined( 'ABSPATH' ) ) exit;
 
+if ( is_user_logged_in() ) 
+{
+    global $wpdb;
+    
+    $report_download = false;   
+
+    $code = "";
+    $sql  = "SELECT option_value FROM {$wpdb->prefix}tdm_migla_options WHERE option_name = 'sitecode'";
+    $code = $wpdb->get_var( $sql );	
+    
+    if( isset($_GET['tdm']) && $_GET['tdm'] == $code ){
+        $report_download =  true;
+    }      
+
+    if( $report_download )
+    {
+        if (ob_get_length()) ob_end_clean();
+    	
+     	$filename = "Report_" . time() ;
+        
+		header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename='.$filename.'.csv');  
+
+        $left = '"';
+        $right = '"';
+        $delimiter = ";";
+        $newline = "\r\n";
+
+        $startdate  = "";
+        $enddate    = "";
+		$what_range = "";
+		$sql        = "";
+		
+		$data = array();
+		$donations = array();
+		$headers = array();
+		    
+		if( isset($_GET['sd']) ){   
+		    $startdate = $_GET['sd'];
+		}
+		if( isset($_GET['ed']) ){   
+		    $enddate = $_GET['ed'];
+		}
+		
+		$sql = "SELECT * FROM {$wpdb->prefix}posts WHERE post_type = %s" ;
+		    
+		if( !empty($startdate) && !empty($enddate) )
+		{
+		    $sql .= " AND post_date BETWEEN '". $startdate ."' AND '". $enddate ."'";
+		}else if( !empty($startdate) && empty($enddate) )
+		{
+		    $sql .= " AND post_date like '" . $startdate  . "%'";
+		}else if( empty($startdate) && !empty($enddate) )
+		{
+		   $sql .= " AND post_date like '" . $enddate  . "%'";
+		}
+
+		$data = $wpdb->get_results( $wpdb->prepare($sql, "migla_donation"), ARRAY_A );
+		
+		$row = 0;
+		$col = 0;
+		
+		$default = array('post_date',
+		                'miglad_firstname',
+		                'miglad_lastname',
+		                'miglad_amount',
+		                'miglad_email'
+		            );
+		
+		foreach($default as $def)
+		{
+    		$headers[$col] = $def;
+            $col++;
+		}
+		
+		if( !empty($data) )
+        {
+            foreach( $data as $datarow )
+            {
+                $id = $datarow['ID'];
+                
+                $donations[$row] = array();
+                
+                $donations[$row]['id'] = $id;
+                $donations[$row]['post_date'] = $datarow['post_date'];
+                
+                $datameta = array();
+                
+                $sql = "SELECT * FROM {$wpdb->prefix}postmeta WHERE post_id = %d" ;
+                
+                $datameta = $wpdb->get_results( $wpdb->prepare($sql, $id), ARRAY_A );
+                
+                foreach( $datameta as $metarow )
+                {
+                    $key = $metarow['meta_key'];
+                    $value = $metarow['meta_value'];
+                    
+                    $donations[$row][$key] = $value;
+                    
+                    if( !in_array( $key, $headers ) )
+                    {
+                        $headers[$col] = $key;
+                        $col++;
+                    }
+                }
+                
+                $row++;
+            }//for   
+        }//if
+		
+        $row = 0;
+
+        if( !empty($headers) && !empty($data) )
+        {
+            $numHeader = count($headers);
+            
+            foreach($headers as $col)
+            {
+                $col_name = str_replace( ";", "", $col );
+                $col_name = str_replace( "miglad_", "", $col_name );
+                $col_name = str_replace( "miglac_", "", $col_name );
+                
+                echo $left . $col_name . $right;
+                
+                if( $row < $numHeader - 1 ){
+                	echo $delimiter;
+                }else{
+                }
+                
+                $row++;
+            }
+            
+            echo $newline;
+            
+            $row = 0;
+            
+            foreach($donations as $donationrow)
+            {
+                foreach($headers as $col)
+                {
+                    if( isset( $donationrow[$col] ) ){
+                        echo $left . str_replace( ";", "", $donationrow[$col] ) . $right;    
+                    }else{
+                        echo $left . "" . $donationrow['id'] . $right;  
+                    }
+                    
+                    if( $row < $numHeader - 1 ){
+                    	echo $delimiter;
+                    }else{
+                    }
+                    
+                }//foreachmeta
+            
+                $row++;
+                
+                echo $newline;
+            }
+
+        }//if metaheaders
+     	
+     	exit();
+     	
+    }//report download
+}
+
+if ( !defined( 'ABSPATH' ) ) exit;
+
 if ( !class_exists( 'Totaldonations_DM_ADMIN_MENU' ) )
 {
 class Totaldonations_DM_ADMIN_MENU
@@ -87,6 +254,10 @@ class Totaldonations_DM_ADMIN_MENU
 
 		    $data = $wpdb->get_results( $wpdb->prepare($sql, "migla_donation"), ARRAY_A );
 		    
+		    $code = "";
+            $sql  = "SELECT option_value FROM {$wpdb->prefix}tdm_migla_options WHERE option_name = 'sitecode'";
+            $code = $wpdb->get_var( $sql );		    
+		    
 		    $post_id = array();
 		    $meta_array = array();
 		    $metacustom_array = array();
@@ -97,7 +268,8 @@ class Totaldonations_DM_ADMIN_MENU
 		    $post_array = array();
 		    
 		    if(!empty( $data )){
-		        foreach( $data as $row){
+		        foreach( $data as $row)
+		        {
 		            $id = $row['ID'];
 		            $post_array[$id] = array();
 		            
@@ -224,8 +396,8 @@ class Totaldonations_DM_ADMIN_MENU
 			  		    <div class="col-md-4">
 			  		    <form action="<?php echo get_admin_url(); ?>" method="GET">
 			  		        <input type="hidden" name="page" value="<?php echo $_GET['page'];?>" >
-			  		        <input type="input" name="sd" value="" placeholder="Start From">
-			  		        <input type="input" name="ed" value="" placeholder="Below this date">
+			  		        <input type="input" name="sd" value="<?php echo $startdate;?>" placeholder="Start From">
+			  		        <input type="input" name="ed" value="<?php echo $enddate;?>" placeholder="Below this date">
 			  		        <input type="submit" value="get donations">
 			  		    </form>
 			  		    <br>
@@ -266,10 +438,10 @@ class Totaldonations_DM_ADMIN_MENU
 			  		    
 			  		    foreach($campaign_array as $keycustom){
 			  		    ?>
-			  		    <div class="row form-group col-md-12">
+			  		    <div class="row form-group col-md-12 tdm-cmp" id="cmp-<?php echo $j;?>">
 			  		        <div class="col-md-3">
 			  		            <label><?php echo $keycustom;?></label>
-			  		            <input type="hidden" class="tdm-cmp-text" value="<?php echo $keycustom;?>" />
+			  		            <input type="hidden" id="tdm-cmp-<?php echo $j;?>-oldtext" class="tdm-cmp-oldtext" value="<?php echo $keycustom;?>" />
 			  		            <label class="pull-right"> Map to </label>
 			  		        </div>
 			  		        <div class="col-md-3">
@@ -311,13 +483,14 @@ class Totaldonations_DM_ADMIN_MENU
 			  		if(!empty($metacustom_percampaign_array))
 			  		{
 			  		    $j = 1;
+			  		    $first_uid = "";
 			  		    
 			  		    foreach($metacustom_percampaign_array as $keycustom){
 			  		    ?>
-			  		    <div class="row form-group col-md-12">
+			  		    <div class="row form-group col-md-12 tdm-custom-field" id="field-<?php echo $j;?>">
 			  		        <div class="col-md-3">
 			  		            <label><?php echo $keycustom;?></label>
-			  		            <input type="hidden" class="tdm-custom-text" value="<?php echo $keycustom;?>" />
+			  		            <input type="hidden" id="field-<?php echo $j;?>-old" class="tdm-custom-text" value="<?php echo $keycustom;?>" />
 			  		            <label class="pull-right"> Map to </label>
 			  		        </div>
 			  		        <div class="col-md-3">
@@ -325,8 +498,11 @@ class Totaldonations_DM_ADMIN_MENU
 			  		                <?php
 			  		                if(!empty($fields)){
 			  		                    foreach($fields as $uid => $val ){
+			  		                        if($j == 1){
+			  		                            $first_uid = $uid;
+			  		                        }
 			  		                    ?>
-			  		                    <option value="<?php echo $uid;?>"><?php echo $val;?></option>
+			  		                    <option value="<?php echo $uid;?>"><?php echo str_replace( "[q]", "'", $val);?></option>
 			  		                    <?php
 			  		                    }
 			  		                }
@@ -334,7 +510,7 @@ class Totaldonations_DM_ADMIN_MENU
 			  		            </select>
 			  		        </div>
 			  		        <div class="col-md-3">
-			  		            <input type="text" class="form-group tdm-text-field" id="tdm-field-<?php echo $j;?>-text" />
+			  		            <input type="text" disabled class="form-group tdm-text-field" id="tdm-field-<?php echo $j;?>-text" value="<?php echo $first_uid; ?>"/>
 			  		        </div>
 			  		    </div>
 			  		    <?php
@@ -376,6 +552,7 @@ class Totaldonations_DM_ADMIN_MENU
 			  		    ?>
 			  	        <div class="col-md-3">
 			  	            <button id="tdm-btnsave_donations" class="btn btn-primary">Save these donations into new TotalDonations</button>
+			  	            <span id="tdm-btnsave_donations-loader" style="display:none;">Processing <img src="<?php echo Totaldonations_DM_DIR_URL . "/assets/images/loading.gif"; ?>"></span>
 			  	        </div>
 			  	        <?php
 			  		    }
@@ -393,7 +570,11 @@ class Totaldonations_DM_ADMIN_MENU
         <div class="row">
             <div class="col-md-12">
 			<div class="panel panel-default">
-			  <div class="panel-heading">Table</div>
+			  <div class="panel-heading">Data
+			    <a href="<?php echo get_admin_url()."?page=Totaldonations_DM&sd=".$startdate."&ed=".$enddate."&tdm=".$code; ?>" class="btn btn-success pull-right">
+			        Export to CSV</a>
+			    <br><br>
+			  </div>
 			  	<div class="panel-body">
 			  		<div class="row col-md-12">
 			  		    
@@ -407,13 +588,16 @@ class Totaldonations_DM_ADMIN_MENU
                                 <th>First Name</th>
                                 <th>LastName</th>
                                 <th>Amount</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                         <?php
                         if(!empty( $data ))
                         {
-            		        foreach( $data as $row){
+            		        foreach( $data as $row)
+            		        {
+            		            $track_id = tdm_migla_tracking( $row['ID'] );
             		        ?>
             		            <tr>
             		                <td><?php echo $row['ID']; ?></td>
@@ -421,6 +605,17 @@ class Totaldonations_DM_ADMIN_MENU
             		                <td><?php echo get_post_meta($row['ID'], "miglad_firstname", true); ?></td>
             		                <td><?php echo get_post_meta($row['ID'], "miglad_lastname", true); ?></td>
             		                <td><?php echo get_post_meta($row['ID'], "miglad_amount", true); ?></td>
+            		                <td>
+            		                    <?php
+            		                    if( $track_id > 0 ){
+            		                    ?>
+            		                        <span><i class="fa fa-check">transferred</i></span>
+            		                        <button class="btn btn-warning tdm-rollback" id="tdm-rollback-<?php echo $track_id; ?>" name="<?php echo $track_id; ?>"><i class="fa fa-refresh">  rollback</i></button>
+            		                        <img id="img-load-<?php echo $track_id; ?>" style="display:none;" src="<?php echo Totaldonations_DM_DIR_URL . "/assets/images/loading.gif"; ?>">
+            		                    <?php
+            		                    }
+            		                    ?>
+            		                </td>
             		            </tr>
             		        <?php
             		        }
@@ -434,12 +629,13 @@ class Totaldonations_DM_ADMIN_MENU
                                 <th>First Name</th>
                                 <th>LastName</th>
                                 <th>Amount</th>
+                                <th>Actions</th>
                             </tr>
                         </tfoot>
                         </table>
                     </div>
                     </div>
-                    
+
 			  		</div>
 				</div>
 			</div>
